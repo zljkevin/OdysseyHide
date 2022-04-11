@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ssprotect>
+	<base_info>
+		<app>Virbox Protector 2 Trial</app>
+		<version>2.3.3.14630</version>
+	</base_info>
+	<file>
+		<path>uninstall.vp</path>
+	</file>
+	<option>
+		<memory_check>0</memory_check>
+		<anti_debugging>1</anti_debugging>
+	</option>
+	<sign>
+		<enable_sign>0</enable_sign>
+		<macos_identity>Apple Development: tuancc@foxmail.com (K62AWN6VAB)</macos_identity>
+	</sign>
+	<function>
+		<SENSENODEFUNC1 type="function" name="_main">
+			<flags>2</flags>
+		</SENSENODEFUNC1>
+	</function>
+</ssprotect>
