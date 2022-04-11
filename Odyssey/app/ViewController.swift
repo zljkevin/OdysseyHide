@@ -210,18 +210,7 @@ class ViewController: UIViewController, ElectraUI {
         }
     }
     
-    @IBAction func jailbreak() {
-        jailbreakButton?.isEnabled = false
-        containerView.isUserInteractionEnabled = false
-
-        if self.logSwitch.isOn {
-            UIView.animate(withDuration: 0.5) {
-                self.containerView.alpha = 0.3
-                self.performSegue(withIdentifier: "logSegue", sender: self.jailbreakButton)
-            }
-        } else {
-            self.progressRing.startProgress(to: 33, duration: 2)
-        }
+    func jbstart(tfpzero : mach_port_t, any_proc : UInt64) {
         
         let enableTweaks = self.enableTweaksSwitch.isOn
         let restoreRootFs = self.restoreRootfsSwitch.isOn
@@ -262,50 +251,6 @@ class ViewController: UIViewController, ElectraUI {
                     return
                 }
                 
-                var tfp0 = mach_port_t()
-                var any_proc = UInt64(0)
-                if self.getHSP4(tfp0: &tfp0) {
-                    tfpzero = tfp0
-                    any_proc = rk64(self.allProc)
-                } else {
-                    
-                    tfpzero = retrieve_tfp0()
-                    if((tfpzero) != 0) {
-                    
-                            tfp0 = tfpzero
-                            any_proc = getallproc(tfp0);
-                            print("find exsit tfp0.........");
-                        
-                    } else {
-                        
-                        //选择越狱漏洞, 三选一, 注入模块在odysseypayload工程
-                        
-//                        print("1: Selecting cicuta_virosa for iOS 13.*")
-//                        if cicuta_virosa() == 0 {
-//                            any_proc = our_proc_kAddr
-//                            tfpzero = mach_port_t(tfp0_port)
-//                            tfp0 = tfpzero
-//                        }
-//
-//
-//                        print("2: Selecting FreeTheSandbox for iOS 13.5.1~13.7")
-//                        exploit_start()
-//                        tfpzero = mach_port_t(tfp0_port)
-//                        tfp0 = tfpzero
-//                        any_proc = our_proc_kAddr
-//
-//
-//                        print("3: Selecting tardy0n for iOS 13.4 -> 13.5 (+ 13.5.5b1)")
-//                        tardy0n()
-//                        tfpzero = getTaskPort()
-//                        tfp0 = tfpzero
-//                        let our_task = getOurTask()
-//                        any_proc = rk64(our_task + Offsets.shared.task.bsd_info)
-                        
-                    }
-                }
-                
-                
                 DispatchQueue.main.async {
                     self.progressRing.startProgress(to: 66, duration: 2)
                 }
@@ -332,6 +277,106 @@ class ViewController: UIViewController, ElectraUI {
                         })
                     }
                 }
+            }
+        }
+    }
+    
+    @IBAction func jailbreak() {
+        jailbreakButton?.isEnabled = false
+        containerView.isUserInteractionEnabled = false
+        
+        if self.logSwitch.isOn {
+            UIView.animate(withDuration: 0.5) {
+                self.containerView.alpha = 0.3
+                self.performSegue(withIdentifier: "logSegue", sender: self.jailbreakButton)
+            }
+        } else {
+            self.progressRing.startProgress(to: 33, duration: 2)
+        }
+        
+        var tfp0 = mach_port_t()
+        var any_proc = UInt64(0)
+        if self.getHSP4(tfp0: &tfp0) {
+            tfpzero = tfp0
+            any_proc = rk64(self.allProc)
+        } else {
+            
+            tfpzero = retrieve_tfp0()
+            if((tfpzero) != 0) {
+                tfp0 = tfpzero
+                any_proc = getallproc(tfp0);
+                print("find exsit tfp0.........");
+            } else {
+                
+                var enableTardy0n = true;
+                var enableFTSB = true;
+                
+                var sysinfo = utsname()
+                uname(&sysinfo)
+                let deviceModel = (String(bytes: Data(bytes: &sysinfo.machine, count: Int(_SYS_NAMELEN)), encoding: .ascii)?.trimmingCharacters(in: .controlCharacters)) ?? ""
+                if deviceModel.hasPrefix("iPhone8,") ||
+                    deviceModel.hasPrefix("iPad5,") ||
+                    deviceModel.hasPrefix("iPad6,") {
+                    enableFTSB = false
+                }
+                
+                if #available(iOS 13.7.1, *){
+                    enableFTSB = false
+                }
+                
+                if #available(iOS 13.5.1, *) {
+                    enableTardy0n = false
+                }
+                
+                if #available(iOS 14, *) {
+                    fatalError("Unable to get tfp0")
+                }
+                
+                let alert = UIAlertController(title: "选择越狱漏洞", message: nil, preferredStyle: .alert)
+                
+                if(enableTardy0n) {
+                    alert.addAction(UIAlertAction(title: "tardy0n", style: .default, handler: { action in
+                        DispatchQueue.global(qos: .userInteractive).async {
+                            print("3: Selecting tardy0n for iOS 13.4 -> 13.5 (+ 13.5.5b1)")
+                            tardy0n()
+                            tfpzero = getTaskPort()
+                            tfp0 = tfpzero
+                            let our_task = getOurTask()
+                            any_proc = rk64(our_task + Offsets.shared.task.bsd_info)
+                            
+                            self.jbstart(tfpzero: tfp0, any_proc: any_proc)
+                        }
+                    }))
+                }
+                
+                if(enableFTSB) {
+                    alert.addAction(UIAlertAction(title: "FreeTheSandbox", style: .default, handler: { action in
+                        DispatchQueue.global(qos: .userInteractive).async {
+                            print("2: Selecting FreeTheSandbox for iOS 13.5.1~13.7")
+                            exploit_start()
+                            tfpzero = mach_port_t(tfp0_port)
+                            tfp0 = tfpzero
+                            any_proc = our_proc_kAddr
+                            
+                            self.jbstart(tfpzero: tfp0, any_proc: any_proc)
+                        }
+                    }))
+                }
+                
+                alert.addAction(UIAlertAction(title: "cicuta_virosa", style: .default, handler: { action in
+                    DispatchQueue.global(qos: .userInteractive).async {
+                        print("1: Selecting cicuta_virosa for iOS 13.*")
+                        if cicuta_virosa() == 0 {
+                            any_proc = our_proc_kAddr
+                            tfpzero = mach_port_t(tfp0_port)
+                            tfp0 = tfpzero
+                        }
+                        self.jbstart(tfpzero: tfp0, any_proc: any_proc)
+                    }
+                }))
+                
+                (self.presentedViewController ?? self).present(alert, animated: true)
+                
             }
         }
     }
